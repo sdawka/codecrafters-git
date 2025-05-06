@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const zlib = require("zlib");
+const crypto = require("crypto");
 
 // You can use print statements as follows for debugging, they'll be visible when running tests.
 console.error("Logs from your program will appear here!");
@@ -19,6 +20,19 @@ switch (command) {
     } else {
       throw new Error("cat-file command requires the -p option");
     }
+    break;
+  case "hash-object":
+    let writeObject = false;
+    let filePathIndex = 3;
+    if (process.argv[3] === "-w") {
+      writeObject = true;
+      filePathIndex = 4;
+    }
+    const filePath = process.argv[filePathIndex];
+    if (!filePath) {
+      throw new Error("hash-object command requires a file path");
+    }
+    hashObject(filePath, writeObject);
     break;
   default:
     throw new Error(`Unknown command ${command}`);
@@ -63,6 +77,47 @@ function catFile(objectHash) {
   } catch (error) {
     if (error.code === 'ENOENT') {
       throw new Error(`Object ${objectHash} not found`);
+    }
+    throw error;
+  }
+}
+
+function hashObject(filePath, writeObject) {
+  try {
+    // Read the file content
+    const content = fs.readFileSync(filePath);
+    
+    // Prepare the blob object content
+    const header = `blob ${content.length}\0`;
+    const store = Buffer.concat([Buffer.from(header), content]);
+    
+    // Calculate the SHA-1 hash
+    const hash = crypto.createHash('sha1').update(store).digest('hex');
+    
+    // Print the hash
+    console.log(hash);
+    
+    // Write the object if -w flag is present
+    if (writeObject) {
+      const directory = hash.substring(0, 2);
+      const filename = hash.substring(2);
+      const objectDir = path.join(process.cwd(), ".git", "objects", directory);
+      const objectPath = path.join(objectDir, filename);
+      
+      // Compress the content
+      const compressedContent = zlib.deflateSync(store);
+      
+      // Create directory if it doesn't exist
+      if (!fs.existsSync(objectDir)) {
+        fs.mkdirSync(objectDir, { recursive: true });
+      }
+      
+      // Write the compressed content to the object file
+      fs.writeFileSync(objectPath, compressedContent);
+    }
+  } catch (error) {
+    if (error.code === 'ENOENT') {
+      throw new Error(`File not found: ${filePath}`);
     }
     throw error;
   }
