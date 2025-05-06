@@ -4,6 +4,7 @@ const { catFileCommand } = require("./commands/catFile");
 const { hashObjectCommand } = require("./commands/hashObject");
 const { lsTreeCommand } = require("./commands/lsTree");
 const { writeTreeCommand } = require("./commands/writeTree");
+const { commitTreeCommand } = require("./commands/commitTree"); // Import the new command
 
 // You can use print statements as follows for debugging, they'll be visible when running tests.
 console.error("Logs from your program will appear here!");
@@ -59,6 +60,24 @@ try { // Add a try-catch block for better error handling at the top level
       // write-tree doesn't take arguments in this basic implementation
       const treeSha = writeTreeCommand(); // Call the imported function
       console.log(treeSha);
+      break;
+    case "commit-tree":
+      // Parse arguments: commit-tree <tree_sha> -p <commit_sha> -m <message>
+      const treeShaArg = process.argv[3];
+      const parentFlagIndex = process.argv.indexOf("-p");
+      const messageFlagIndex = process.argv.indexOf("-m");
+
+      if (!treeShaArg || parentFlagIndex === -1 || messageFlagIndex === -1 ||
+          parentFlagIndex + 1 >= process.argv.length || messageFlagIndex + 1 >= process.argv.length) {
+        throw new Error("Usage: commit-tree <tree_sha> -p <commit_sha> -m <message>");
+      }
+
+      const parentShaArg = process.argv[parentFlagIndex + 1];
+      // Combine message parts if they contain spaces
+      const messageArg = process.argv.slice(messageFlagIndex + 1).join(' ');
+
+      const commitSha = commitTreeCommand(treeShaArg, parentShaArg, messageArg);
+      console.log(commitSha);
       break;
     default:
       throw new Error(`Unknown command ${command}`);
