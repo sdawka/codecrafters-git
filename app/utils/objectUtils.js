@@ -60,4 +60,48 @@ function writeBlobObject(filePath) {
   }
 }
 
-module.exports = { writeBlobObject, writeGitObject };
+async function readObject(sha) {
+  const objectPath = path.join(
+    process.cwd(),
+    ".git",
+    "objects",
+    sha.substring(0, 2),
+    sha.substring(2)
+  );
+
+  if (!fs.existsSync(objectPath)) {
+    // This can happen if an object is part of a packfile but not yet written individually
+    // Or if the SHA is simply incorrect.
+    console.warn(`Object ${sha} not found at ${objectPath}`);
+    return null;
+  }
+
+  try {
+    const compressedContent = fs.readFileSync(objectPath);
+    const decompressedContent = zlib.inflateSync(compressedContent);
+
+    const nullByteIndex = decompressedContent.indexOf(0);
+    if (nullByteIndex === -1) {
+      throw new Error(`Invalid object format for ${sha}: no null byte separator`);
+    }
+
+    const header = decompressedContent.slice(0, nullByteIndex).toString();
+    const content = decompressedContent.slice(nullByteIndex + 1);
+
+    const [type, sizeStr] = header.split(" ");
+    const size = parseInt(sizeStr, 10);
+
+    if (isNaN(size) || size !== content.length) {
+      throw new Error(
+        `Invalid object format for ${sha}: size mismatch (header: ${size}, actual: ${content.length})`
+      );
+    }
+
+    return { type, content };
+  } catch (error) {
+    console.error(`Failed to read or parse object ${sha}: ${error.message}`);
+    throw error; // Re-throw the error to be handled by the caller
+  }
+}
+
+module.exports = { writeBlobObject, writeGitObject, readObject };

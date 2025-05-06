@@ -5,6 +5,7 @@ const { hashObjectCommand } = require("./commands/hashObject");
 const { lsTreeCommand } = require("./commands/lsTree");
 const { writeTreeCommand } = require("./commands/writeTree");
 const { commitTreeCommand } = require("./commands/commitTree"); // Import the new command
+const { cloneCommand } = require("./commands/clone"); // Import the clone command
 
 // You can use print statements as follows for debugging, they'll be visible when running tests.
 console.error("Logs from your program will appear here!");
@@ -78,6 +79,15 @@ try { // Add a try-catch block for better error handling at the top level
 
       const commitSha = commitTreeCommand(treeShaArg, parentShaArg, messageArg);
       console.log(commitSha);
+      break;
+    case "clone":
+      const repoUrl = process.argv[3];
+      const targetDir = process.argv[4]; // Optional target directory
+      if (!repoUrl) {
+        throw new Error("Usage: clone <repository_url> [directory]");
+      }
+      // We'll make cloneCommand async later when handling HTTP requests
+      cloneCommand(repoUrl, targetDir);
       break;
     default:
       throw new Error(`Unknown command ${command}`);
